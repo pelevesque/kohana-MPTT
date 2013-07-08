@@ -1,34 +1,14 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
- * Basic MPTT functionality.
+ * Adds Basic MPTT functionality to Kohana.
  *
+ * @module_version  1.0
+ * @Kohana_version  3.3.0
  * @author          Pierre-Emmanuel Lévesque
- * @data            April 9th, 2011
+ * @data            June 16th, 2013
  * @dependencies    Kohana database module
  */
-class Kohana_XMPTT {
-
-	/**
-	 * @var array   Supported relationships.
-	 */
-	public $relationships = array(
-		'after',
-		'first child of',
-	);
-
-	/**
-	 * @var array   Sibling relationships.
-	 */
-	public $sibling_relationships = array(
-		'after',
-	);
-
-	/**
-	 * @var array   Child relationships.
-	 */
-	public $child_relationships = array(
-		'first child of',
-	);
+class Kohana_MPTT {
 
 	/**
 	 * @var string  Current table name.
@@ -39,6 +19,28 @@ class Kohana_XMPTT {
 	 * @var mixed   Current scope.
 	 */
 	public $scope;
+
+	/**
+	 * @var array   Supported relationships.
+	 */
+	protected $_relationships = array(
+		'after',
+		'first child of',
+	);
+
+	/**
+	 * @var array   Sibling relationships.
+	 */
+	protected $_sibling_relationships = array(
+		'after',
+	);
+
+	/**
+	 * @var array   Child relationships.
+	 */
+	protected $_child_relationships = array(
+		'first child of',
+	);
 
 	/**
 	 * Optionally sets the table and scope upon initializing the class.
@@ -53,16 +55,18 @@ class Kohana_XMPTT {
 		$this->scope = $scope;
 	}
 
+// Better explanation !!!
+
 	/**
 	 * Inserts a node structure at a given position.
 	 *
 	 * $data accepts two formats:
 	 * 
-	 * 1 - array(column => value, column, value, etc...)
-	 * 2 - array(array(column => value, column => value), array(column => value, …)…)
+	 * 1 - array(column => value, column => value, ...)
+	 * 2 - array(array(column => value, column => value), array(column => value,…)...)
 	 *
-	 * When passing numerous nodes in data, lft and rgt
-	 * values must be included to specify the structure.
+	 * When passing numerous nodes in data, lft and rgt values
+	 * must be included to specify the structure.
 	 * In this case, the lft of the root node is always 1.
 	 * Their position will automatically be offset when inserting.
 	 *
@@ -78,68 +82,65 @@ class Kohana_XMPTT {
 	 * @param   array    data
 	 * @param   string   relationship to insert with [def: NULL]
 	 * @param   int      node id to insert to        [def: NULL]
-	 * @return  mixed    insert result array or FALSE on failure
+	 * @return  mixed    insert result array, or FALSE on failure
 	 *
-	 * @uses    get_node()
+	 * @uses    get_root_node()
 	 * @uses    create_gap()
 	 * @uses    check_tree()
 	 */
 	public function insert($data, $relationship = NULL, $insert_node_id = NULL)
 	{
-		$inserted = FALSE;
+		// $root = TRUE;
+		// $gap = 2;
+		// $inserted = FALSE;
 
 		// Make sure data is an array of arrays.
-		! isset($data[0]) AND $data = array($data);
+		! is_array(reset($data)) AND $data = array($data);
 
 		// Create the root node if needed.
-		if ( ! $this->get_node())
+		if ( ! $this->get_root_node())
 		{
-			// Set root data lft and rgt.
-			$root_data = array(
-				'lft' => 1,
-				'rgt' => (count($data) * 2) + 2,
-			);
+			// Set lft and rgt.
+			$root_data = array('lft' => 1, 'rgt' => (count($data) * 2) + 2); // check...
 
-			// Set root data scope.
-			if ($this->scope !== NULL)
-			{
-				$root_data['scope'] = $this->scope;
-			}
+			// Set scope.
+			$this->scope !== NULL AND $root_data['scope'] = $this->scope;
 
-			// Insert the root node.
+			// Create the root node.
 			$root = (bool) DB::insert($this->table, array_keys($root_data))
 				->values(array_values($root_data))
 				->execute();
-
-			// Only save gap_lft if the root was set correctly.
-			if ($root)
-			{
-				$gap_lft = 2;
-			}
-		}
-		// Create a gap for the new page.
-		elseif ($insert_node_id !== NULL AND $relationship !== NULL)
-		{
-			$gap_lft = $this->create_gap($relationship, $insert_node_id, count($data)*2);
 		}
 
-		// Insert nodes if gap_lft is set and not FALSE.
-		if (isset($gap_lft) AND $gap_lft !== FALSE)
+///////////////////////////
+
+
+		// If we have a root node, insert the columns.
+		
+		
+		if ($root) // IS THIS REALLY NEED????
 		{
-			// Get the columns the array keys of the first element.
+
+
+			// ???????????
 			$columns = array_keys($data[0]);
 
 			// Make sure the required columns are defined.
 			! in_array('lft', $columns) AND $columns[] = 'lft';
 			! in_array('rgt', $columns) AND $columns[] = 'rgt';
 
-			if ( ! in_array('scope', $columns) AND $this->scope !== NULL)
+			if ( $this->scope !== NULL AND ! in_array('scope', $columns))
 			{
 				$columns[] = 'scope';
 			}
 
 			// Columns must be sorted like values.
 			sort($columns);
+
+			// Start the query and setup the columns.
+			$query = DB::insert($this->table, $columns);
+
+
 
 			// If we only have one element, make sure lft and rgt are set.
 			if (count($data) == 1)
@@ -148,13 +149,13 @@ class Kohana_XMPTT {
 				! isset($data[0]['rgt']) AND $data[0]['rgt'] = 2;
 			}
 
-			// Start the query and setup the columns.
-			$query = DB::insert($this->table, $columns);
+
+
 
 			// Set the values for each node.
 			foreach ($data as $node)
 			{
-				$offset = $gap_lft - 1;
+				$offset = $gap - 1;
 
 				$node['lft'] = $node['lft'] + $offset;
 				$node['rgt'] = $node['rgt'] + $offset;
@@ -170,6 +171,11 @@ class Kohana_XMPTT {
 				$query->values(array_values($node));
 			}
 
+
+
+
+
+
 			$query_result = $query->execute();
 
 			// Make sure the restructured tree is valid.
@@ -180,7 +186,54 @@ class Kohana_XMPTT {
 		}
 
 		return $inserted;
+		*/
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		// NOTE SURE ABOUT THIS...
+		/*
+		elseif ($relationship !== NULL AND $insert_node_id !== NULL)
+		{
+			$gap = $this->create_gap($relationship, $insert_node_id, count($data)*2); ???
+		}
+		*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	/**
 	 * Moves a node and its children.
@@ -471,40 +524,57 @@ class Kohana_XMPTT {
 		return $value;
 	}
 
+
+
+
+
 	/**
 	 * Gets a node from a node id.
 	 *
 	 * If node id is false, the root node is returned.
 	 *
 	 * @param   mixed    node id [def: FALSE]
-	 * @return  array    node
+	 * @return  mixed    node array, or FALSE if node does not exist
 	 *
 	 * @uses    where_scope()
-	 * @callby  insert()
-	 * @callby  move()
-	 * @callby  delete()
-	 * @callby  create_gap()
+	 * @caller  move()
+	 * @caller  delete()
+	 * @caller  create_gap()
 	 */
-	public function get_node($node_id = FALSE)
+	public function get_node($node_id)
 	{
 		$query = DB::select()
-			->from($this->table);
-
-		// Get the root node.
-		if ($node_id === FALSE)
-		{
-			$query->where('lft', '=', 1);
-		}
-		// Get the node using node id.
-		else
-		{
-			$query->where('id', '=', $node_id);
-		}
+			->from($this->table)
+			->where('lft', '=', $node_id);
 
 		$query = $this->where_scope($query);
 
 		return $query->execute()->current();
 	}
+
+
+
+
+
+
+	/**
+	 * Gets the root node
+	 *
+	 * @return  mixed    node array, or FALSE if node does not exist
+	 *
+	 * @uses    get_node()
+	 * @caller  insert()
+	 */	
+	public function get_root_node()
+	{
+		return $this->get_node(1);
+	}
+
+
+
+
+
+
 
 	/**
 	 * Checks if a tree is valid.
@@ -695,13 +765,13 @@ class Kohana_XMPTT {
 	 * @param   SQL obj   query
 	 * @return  SQL	obj   query
 	 *
-	 * @callby  delete()
-	 * @callby  get_node()
-	 * @callby  update_position()
+	 * @caller  delete()
+	 * @caller  get_node()
+	 * @caller  update_position()
 	 */
 	protected function where_scope($query)
 	{
-		if ($this->scope != NULL)
+		if ($this->scope !== NULL)
 		{
 			$query->where('scope', '=', $this->scope);
 		}
@@ -709,4 +779,4 @@ class Kohana_XMPTT {
 		return $query;
 	}
 
-} // End Kohana_XMPTT
+} // End K_MPTT

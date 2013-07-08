@@ -1,10 +1,10 @@
-# XMPTT
+# MPTT
 
-XMPTT is a simple implementation of MPTT (Modified Preorder Tree Traversal). It provides ways to create, move, and delete tree nodes in a database table, and has a few utility methods.
+MPTT is a simple implementation of MPTT (Modified Preorder Tree Traversal). It provides ways to create, move, and delete tree nodes in a database table, and has a few utility methods.
 
 # Installation
 
-Before using XMPTT, you have to make sure to have certain modules installed and a properly configured database table.
+Before using MPTT, you have to make sure to have certain modules installed and a properly configured database table.
 
 ## Module Dependencies
 

@@ -2,11 +2,11 @@
 
 return array(
 	'modules' => array(
-		'XMPTT' => array(
+		'MPTT' => array(
 			'enabled'     => TRUE,
-			'name'        => 'XMPTT',
+			'name'        => 'MPTT',
 			'description' => 'A simple implementation of MPTT (Modified Preorder Tree Travesal).',
-			'copyright'   => '&copy; 2010–2011 Pierre-Emmanuel Lévesque',
+			'copyright'   => '&copy; 2010–2013 Pierre-Emmanuel Lévesque',
 		)
 	)
 );
