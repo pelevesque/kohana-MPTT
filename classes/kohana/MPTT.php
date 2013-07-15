@@ -1,11 +1,11 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
- * Adds Basic MPTT functionality to Kohana.
+ * Adds basic MPTT functionality to Kohana.
  *
  * @module_version  1.0
  * @Kohana_version  3.3.0
  * @author          Pierre-Emmanuel Lévesque
- * @data            June 16th, 2013
+ * @date            July 15th, 2013
  * @dependencies    Kohana database module
  */
 class Kohana_MPTT {
@@ -43,6 +43,8 @@ class Kohana_MPTT {
 	);
 
 	/**
+	 * Constructor
+	 *
 	 * Optionally sets the table and scope upon initializing the class.
 	 *
 	 * @param   string   table [def: NULL]
@@ -54,8 +56,6 @@ class Kohana_MPTT {
 		$this->table = $table;
 		$this->scope = $scope;
 	}
-
-// Better explanation !!!
 
 	/**
 	 * Inserts a node structure at a given position.
@@ -88,20 +88,16 @@ class Kohana_MPTT {
 	 * @uses    create_gap()
 	 * @uses    check_tree()
 	 */
-	public function insert($data, $relationship = NULL, $insert_node_id = NULL)
+	public function insert($data, $relationship, $insert_node_id)
 	{
-		// $root = TRUE;
-		// $gap = 2;
-		// $inserted = FALSE;
+		$root = TRUE;
+		$inserted = FALSE;
 
-		// Make sure data is an array of arrays.
-		! is_array(reset($data)) AND $data = array($data);
-
-		// Create the root node if needed.
+		// Create the root if it doesn't exist.
 		if ( ! $this->get_root_node())
 		{
 			// Set lft and rgt.
-			$root_data = array('lft' => 1, 'rgt' => (count($data) * 2) + 2); // check...
+			$root_data = array('lft' => 1, 'rgt' => 2);
 
 			// Set scope.
 			$this->scope !== NULL AND $root_data['scope'] = $this->scope;
@@ -110,88 +106,61 @@ class Kohana_MPTT {
 			$root = (bool) DB::insert($this->table, array_keys($root_data))
 				->values(array_values($root_data))
 				->execute();
+	
+			$inserted = TRUE;
 		}
 
-///////////////////////////
-
-
-		// If we have a root node, insert the columns.
-		
-		
-		if ($root) // IS THIS REALLY NEED????
+		if ($root)
 		{
-
-
-			// ???????????
-			$columns = array_keys($data[0]);
-
-			// Make sure the required columns are defined.
-			! in_array('lft', $columns) AND $columns[] = 'lft';
-			! in_array('rgt', $columns) AND $columns[] = 'rgt';
-
-			if ( $this->scope !== NULL AND ! in_array('scope', $columns))
+			// Create a gap for the insertion.
+			if ($gap = $this->_create_gap($relationship, $insert_node_id))
 			{
-				$columns[] = 'scope';
-			}
+				// Add custom columns.
+				$columns = array_keys($data);
 
-			// Columns must be sorted like values.
-			sort($columns);
+				// Add system reserved columns.
+				$columns[] = 'lft';
+				$columns[] = 'rgt';
+				$this->scope !== NULL AND $columns[] = 'scope';
 
-			// Start the query and setup the columns.
-			$query = DB::insert($this->table, $columns);
+				// Sort columns
+				sort($columns);
 
+				// Start the query and setup the columns.
+				$query = DB::insert($this->table, $columns);
 
-
-			// If we only have one element, make sure lft and rgt are set.
-			if (count($data) == 1)
-			{
-				! isset($data[0]['lft']) AND $data[0]['lft'] = 1;
-				! isset($data[0]['rgt']) AND $data[0]['rgt'] = 2;
-			}
-
-
-
-
-			// Set the values for each node.
-			foreach ($data as $node)
-			{
+				// Get the offset.
 				$offset = $gap - 1;
 
-				$node['lft'] = $node['lft'] + $offset;
-				$node['rgt'] = $node['rgt'] + $offset;
-
-				if ($this->scope !== NULL)
-				{
-					$node['scope'] = $this->scope;
-				}
+				// Set system data values.
+				$data['lft'] = $offset + 1;
+				$data['rgt'] = $offset + 2;
+				$this->scope !== NULL AND $data['scope'] = $this->scope;
 
 				// Values must be sorted like columns.
-				ksort($node);
+				ksort($data);
 
-				$query->values(array_values($node));
+				$query->values(array_values($data));
+
+				$query_result = $query->execute();
+
+				$inserted = TRUE;
 			}
+		}
 
-
-
-
-
-
-			$query_result = $query->execute();
-
-			// Make sure the restructured tree is valid.
-			if ($this->check_tree())
-			{
-				$inserted = $query_result;
-			}
+		// Make sure the restructured tree is valid.
+		if ($inserted)
+		{
+			$inserted = $this->_check_tree();
 		}
 
 		return $inserted;
-		*/
 	}
 
 
 
 
+// How to insert root node with data???
 
 
 
@@ -212,13 +181,28 @@ class Kohana_MPTT {
 
 
 
-		// NOTE SURE ABOUT THIS...
-		/*
-		elseif ($relationship !== NULL AND $insert_node_id !== NULL)
-		{
-			$gap = $this->create_gap($relationship, $insert_node_id, count($data)*2); ???
-		}
-		*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -457,6 +441,14 @@ class Kohana_MPTT {
 		return $values;
 	}
 
+
+
+
+
+
+
+
+
 	/**
 	 * Gets the tree with an auto calculated depth column.
 	 *
@@ -467,15 +459,15 @@ class Kohana_MPTT {
 	 * @callby  check_tree()
 	 * @callby  get_children_ids()
 	 */
-	public function get_tree($root_id = NULL)
+	public function get_tree($root_id = 1)
 	{
-		$query = DB::select('*', array('COUNT("parent.id") - 1', 'depth'))
+		$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
 			->from(array($this->table, 'parent'), array($this->table, 'child'))
-			->where('child.lft', 'BETWEEN', DB::expr("`parent`.`lft` AND `parent`.`rgt`"))
+			->where('child.lft', 'BETWEEN', DB::expr('`parent`.`lft` AND `parent`.`rgt`'))
 			->group_by('child.id')
 			->order_by('child.lft');
 
-		if ($this->scope != NULL)
+		if ($this->scope !== NULL)
 		{
 			$query->where('child.scope', '=', $this->scope);
 		}
@@ -524,21 +516,16 @@ class Kohana_MPTT {
 		return $value;
 	}
 
-
-
-
-
 	/**
 	 * Gets a node from a node id.
 	 *
-	 * If node id is false, the root node is returned.
-	 *
-	 * @param   mixed    node id [def: FALSE]
+	 * @param   mixed    node id
 	 * @return  mixed    node array, or FALSE if node does not exist
 	 *
 	 * @uses    where_scope()
 	 * @caller  move()
 	 * @caller  delete()
+	 * @caller  get_root_node()
 	 * @caller  create_gap()
 	 */
 	public function get_node($node_id)
@@ -547,15 +534,10 @@ class Kohana_MPTT {
 			->from($this->table)
 			->where('lft', '=', $node_id);
 
-		$query = $this->where_scope($query);
+		$query = $this->_where_scope($query);
 
 		return $query->execute()->current();
 	}
-
-
-
-
-
 
 	/**
 	 * Gets the root node
@@ -570,12 +552,6 @@ class Kohana_MPTT {
 		return $this->get_node(1);
 	}
 
-
-
-
-
-
-
 	/**
 	 * Checks if a tree is valid.
 	 *
@@ -589,7 +565,7 @@ class Kohana_MPTT {
 	 * @callby  move()
 	 * @callby  delete()
 	 */
-	protected function check_tree()
+	protected function _check_tree()
 	{
 		$valid = TRUE;
 		$current_depth;
@@ -675,7 +651,7 @@ class Kohana_MPTT {
 	 * @throws  Kohana_Exception   Root node cannot have siblings.
 	 * @throws  Kohana_Exception   Relationship does not exist.
 	 */
-	protected function create_gap($relationship, $node_id, $size = 2)
+	protected function _create_gap($relationship, $node_id, $size = 2)
 	{
 		$gap_lft = FALSE;
 
@@ -683,7 +659,7 @@ class Kohana_MPTT {
 		if ($node = $this->get_node($node_id))
 		{
 			// Don't allow the root node to have siblings.
-			if ($node['lft'] == 1 AND in_array($relationship, $this->sibling_relationships))
+			if ($node['lft'] == 1 AND in_array($relationship, $this->_sibling_relationships))
 				throw new Kohana_Exception('The root node cannot have siblings');
 
 			// Get parameters depending on the relationship.
@@ -705,8 +681,8 @@ class Kohana_MPTT {
 			}
 
 			// Update the node positions to create the gap.
-			$this->update_position('lft', $size, array('lft', '>', $limit));
-			$this->update_position('rgt', $size, array('rgt', '>', $limit));
+			$this->_update_position('lft', $size, array('lft', '>', $limit));
+			$this->_update_position('rgt', $size, array('rgt', '>', $limit));
 		}
 
 		return $gap_lft;
@@ -735,7 +711,7 @@ class Kohana_MPTT {
 	 * @callby  delete()
 	 * @callby  create_gap()
 	 */
-	protected function update_position($columns, $increment, $where)
+	protected function _update_position($columns, $increment, $where)
 	{
 		// Make sure where is an array of arrays.
 		! is_array($where[0]) AND $where = array($where);
@@ -756,7 +732,7 @@ class Kohana_MPTT {
 			$query->where($condition[0], $condition[1], $condition[2]);
 		}
 
-		$query = $this->where_scope($query)->execute();
+		$query = $this->_where_scope($query)->execute();
 	}
 
 	/**
@@ -769,7 +745,7 @@ class Kohana_MPTT {
 	 * @caller  get_node()
 	 * @caller  update_position()
 	 */
-	protected function where_scope($query)
+	protected function _where_scope($query)
 	{
 		if ($this->scope !== NULL)
 		{
