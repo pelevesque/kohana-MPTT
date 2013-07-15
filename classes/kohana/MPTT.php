@@ -167,7 +167,7 @@ class Kohana_MPTT {
 	 *
 	 * @uses    get_node()
 	 * @uses    create_gap()
-	 * @uses    update_position()
+	 * @uses    _update_position()
 	 * @uses    check_tree()
 	 * @throws  Kohana_Exception   A node cannot be moved unto itself.
 	 * @throws  Kohana_Exception   The root node cannot be moved.
@@ -224,7 +224,7 @@ class Kohana_MPTT {
 				}
 
 				// Move the node and its children into the gap.
-				$this->update_position(array('lft', 'rgt'), $increment, array(
+				$this->_update_position(array('lft', 'rgt'), $increment, array(
 					array('lft', '>=', $node['lft']),
 					array('rgt', '<=', $node['rgt']),
 				));
@@ -232,8 +232,8 @@ class Kohana_MPTT {
 				// Close the gap created by the moved nodes.
 				$limit = $node['lft'] - 1;
 				$increment = $gap_size * -1;
-				$this->update_position('lft', $increment, array('lft', '>', $limit));
-				$this->update_position('rgt', $increment, array('rgt', '>', $limit));
+				$this->_update_position('lft', $increment, array('lft', '>', $limit));
+				$this->_update_position('rgt', $increment, array('rgt', '>', $limit));
 
 				// Make sure the restructured tree is valid.
 				if ($this->check_tree())
@@ -255,7 +255,7 @@ class Kohana_MPTT {
 	 * @uses    get_tree()
 	 * @uses    get_node()
 	 * @uses    _where_scope()
-	 * @uses    update_position()
+	 * @uses    _update_position()
 	 * @uses    check_tree()
 	 */
 	public function delete($node_ids)
@@ -309,8 +309,8 @@ class Kohana_MPTT {
 
 					// Close the gap created by the deletion.
 					$increment = ($num_deletions * 2) * -1;
-					$this->update_position('lft', $increment, array('lft', '>', $node['lft']));
-					$this->update_position('rgt', $increment, array('rgt', '>', $node['lft']));
+					$this->_update_position('lft', $increment, array('lft', '>', $node['lft']));
+					$this->_update_position('rgt', $increment, array('rgt', '>', $node['lft']));
 				}
 			}
 		}
@@ -623,7 +623,7 @@ class Kohana_MPTT {
 	 * @return  mixed    gap lft, FALSE on failure
 	 *
 	 * @uses    get_node()
-	 * @uses    update_position()
+	 * @uses    _update_position()
 	 * @callby  insert()
 	 * @callby  move()
 	 * @throws  Kohana_Exception   Root node cannot have siblings.
@@ -681,21 +681,21 @@ class Kohana_MPTT {
 	 *
 	 * @param   mixed   column(s) (see above)
 	 * @param   int     increment
-	 * @param   array   where conditions (see above)
+	 * @param   array   where condition(s) (see above)
 	 * @return  void
 	 *
-	 * @uses    where_scope()
-	 * @callby  move()
-	 * @callby  delete()
-	 * @callby  create_gap()
+	 * @uses    _where_scope()
+	 * @caller  move()
+	 * @caller  delete()
+	 * @caller  _create_gap()
 	 */
 	protected function _update_position($columns, $increment, $where)
 	{
-		// Make sure where is an array of arrays.
-		! is_array($where[0]) AND $where = array($where);
-
 		// Make sure columns is an array.
 		! is_array($columns) AND $columns = array($columns);
+
+		// Make sure where is an array of arrays.
+		! is_array($where[0]) AND $where = array($where);
 
 		// Build and run the query.
 		$query = DB::update($this->table);
@@ -710,7 +710,7 @@ class Kohana_MPTT {
 			$query->where($condition[0], $condition[1], $condition[2]);
 		}
 
-		$query = $this->_where_scope($query)->execute();
+		$this->_where_scope($query)->execute();
 	}
 
 	/**
