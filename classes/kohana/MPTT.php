@@ -86,7 +86,7 @@ class Kohana_MPTT {
 	 *
 	 * @uses    get_root_node()
 	 * @uses    _create_gap()
-	 * @uses    check_tree()
+	 * @uses    _check_tree()
 	 */
 	public function insert($data, $relationship, $insert_node_id)
 	{
@@ -168,7 +168,7 @@ class Kohana_MPTT {
 	 * @uses    get_node()
 	 * @uses    _create_gap()
 	 * @uses    _update_position()
-	 * @uses    check_tree()
+	 * @uses    _check_tree()
 	 * @throws  Kohana_Exception   A node cannot be moved unto itself.
 	 * @throws  Kohana_Exception   The root node cannot be moved.
 	 * @throws  Kohana_Exception   A parent cannot become a child of its own child.
@@ -236,7 +236,7 @@ class Kohana_MPTT {
 				$this->_update_position('rgt', $increment, array('rgt', '>', $limit));
 
 				// Make sure the restructured tree is valid.
-				if ($this->check_tree())
+				if ($this->_check_tree())
 				{
 					$moved = TRUE;
 				}
@@ -256,7 +256,7 @@ class Kohana_MPTT {
 	 * @uses    get_node()
 	 * @uses    _where_scope()
 	 * @uses    _update_position()
-	 * @uses    check_tree()
+	 * @uses    _check_tree()
 	 */
 	public function delete($node_ids)
 	{
@@ -348,7 +348,7 @@ class Kohana_MPTT {
 				}
 
 				// Make sure the restructured tree is valid.
-				if ( ! $empty_tree AND ! $this->check_tree())
+				if ( ! $empty_tree AND ! $this->_check_tree())
 				{
 					$deleted_ids = FALSE;
 				}
@@ -536,9 +536,9 @@ class Kohana_MPTT {
 	 * @return  bool    valid
 	 *
 	 * @uses    get_tree()
-	 * @callby  insert()
-	 * @callby  move()
-	 * @callby  delete()
+	 * @caller  insert()
+	 * @caller  move()
+	 * @caller  delete()
 	 */
 	protected function _check_tree()
 	{
@@ -610,11 +610,6 @@ class Kohana_MPTT {
 
 		return $valid;
 	}
-
-
-
-
-
 
 	/**
 	 * Creates a gap in the tree.
