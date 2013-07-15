@@ -254,7 +254,7 @@ class Kohana_MPTT {
 	 *
 	 * @uses    get_tree()
 	 * @uses    get_node()
-	 * @uses    where_scope()
+	 * @uses    _where_scope()
 	 * @uses    update_position()
 	 * @uses    check_tree()
 	 */
@@ -299,7 +299,7 @@ class Kohana_MPTT {
 					$query->or_where('id', '=', $id_to_delete);
 				}
 
-				$num_deletions = $this->where_scope($query)->execute();
+				$num_deletions = $this->_where_scope($query)->execute();
 
 				// We have deletions.
 				if ($num_deletions)
@@ -325,7 +325,7 @@ class Kohana_MPTT {
 			$query = DB::select('lft')
 				->from($this->table);
 
-			$nodes = $this->where_scope($query)->execute();
+			$nodes = $this->_where_scope($query)->execute();
 
 			// Run this code if some nodes are left.
 			if ($nodes)
@@ -341,7 +341,7 @@ class Kohana_MPTT {
 					$query = DB::delete($this->table)
 						->where('lft', '=', 1);
 
-					$num_deletions = $this->where_scope($query)->execute();
+					$num_deletions = $this->_where_scope($query)->execute();
 
 					// If the root node was deleted, the tree is empty.
 					$num_deletions == 1 AND $empty_tree = TRUE;
@@ -357,6 +357,8 @@ class Kohana_MPTT {
 
 		return $deleted_ids;
 	}
+
+
 
 
 
@@ -408,7 +410,7 @@ class Kohana_MPTT {
 		$tree = FALSE;
 
 		if ($root_id == NULL OR $this->get_node($root_id))
-		{			
+		{
 			$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
 				->from(array($this->table, 'parent'), array($this->table, 'child'))
 				->where('child.lft', 'BETWEEN', DB::expr('`parent`.`lft` AND `parent`.`rgt`'))
@@ -431,6 +433,45 @@ class Kohana_MPTT {
 
 		return $tree;
 	}
+
+
+
+
+
+	/**
+	 * Gets the root node
+	 *
+	 * @return  mixed    node array, or FALSE if node does not exist
+	 *
+	 * @uses    get_node()
+	 * @caller  insert()
+	 */	
+	public function get_root_node()
+	{
+		return $this->get_node(1);	
+	}
+
+	/**
+	 * Checks if the tree has a root.
+	 *
+	 * @return  bool   has root
+	 *
+	 * @uses    get_root_node()
+	 */
+	public function has_root()
+	{
+		return (bool) $this->get_root_node();
+	}
+
+
+
+
+
+
+
+
+
+
 
 	/**
 	 * Gets the family values of a given column
@@ -478,43 +519,6 @@ class Kohana_MPTT {
 		return $value;
 	}
 	*/
-
-
-
-
-
-
-
-
-
-
-
-	/**
-	 * Checks if the tree has a root.
-	 *
-	 * @return  bool   has root
-
-	 */
-	public function has_root()
-	{
-		return (bool) $this->get_root_node();
-	}
-
-	/**
-	 * Gets the root node
-	 *
-	 * @return  mixed    node array, or FALSE if node does not exist
-	 *
-	 * @uses    get_node()
-	 * @caller  insert()
-	 */	
-	public function get_root_node()
-	{
-		return $this->get_node(1); // this is wrong for many scopes...
-		
-		// figure out which is the root node!!
-		
-	}
 
 
 
@@ -606,6 +610,9 @@ class Kohana_MPTT {
 
 		return $valid;
 	}
+
+
+
 
 	/**
 	 * Creates a gap in the tree.
@@ -714,7 +721,7 @@ class Kohana_MPTT {
 	 *
 	 * @caller  delete()
 	 * @caller  get_node()
-	 * @caller  update_position()
+	 * @caller  _update_position()
 	 */
 	protected function _where_scope($query)
 	{
@@ -726,4 +733,4 @@ class Kohana_MPTT {
 		return $query;
 	}
 
-} // End K_MPTT
+} // Kohana_MPTT
