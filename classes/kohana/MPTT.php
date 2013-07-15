@@ -157,68 +157,6 @@ class Kohana_MPTT {
 		return $inserted;
 	}
 
-
-
-
-// How to insert root node with data???
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	/**
 	 * Moves a node and its children.
 	 *
@@ -420,8 +358,82 @@ class Kohana_MPTT {
 		return $deleted_ids;
 	}
 
+
+
+
+
+
+
+
+
+
+
 	/**
-	 * Gets the family values of a given column 
+	 * Gets a node from a node id.
+	 *
+	 * @param   int      node id
+	 * @return  mixed    node array, or FALSE if node does not exist
+	 *
+	 * @uses    _where_scope()
+	 * @caller  move()
+	 * @caller  delete()
+	 * @caller  get_tree()
+	 * @caller  get_node_value()
+	 * @caller  _create_gap()
+	 */
+	public function get_node($node_id)
+	{
+		$query = DB::select()
+			->from($this->table)
+			->where('id', '=', $node_id);
+
+		$query = $this->_where_scope($query);
+
+		return $query->execute()->current();
+	}
+
+	/**
+	 * Gets the tree with an auto calculated depth column.
+	 *
+	 * @param   int      root id (start from a given root) [def: NULL]
+	 * @return  SQL obj  tree obj, or FALSE on failure
+	 *
+	 * @uses    get_node()
+	 * @caller  delete()
+	 * @caller  get_family_values()
+	 * @caller  _check_tree()
+	 */
+	public function get_tree($root_id = NULL)
+	{
+		$tree = FALSE;
+
+		if ($root_id == NULL OR $this->get_node($root_id))
+		{			
+			$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
+				->from(array($this->table, 'parent'), array($this->table, 'child'))
+				->where('child.lft', 'BETWEEN', DB::expr('`parent`.`lft` AND `parent`.`rgt`'))
+				->group_by('child.id')
+				->order_by('child.lft');
+
+			if ($this->scope !== NULL)
+			{
+				$query->where('child.scope', '=', $this->scope);
+			}
+
+			if ($root_id !== NULL)
+			{
+				$query->where('child.lft', '>=', DB::select('lft')->from($this->table)->where('id', '=', $root_id));
+				$query->where('child.rgt', '<=', DB::select('rgt')->from($this->table)->where('id', '=', $root_id));
+			}
+
+			$tree = $query->execute();
+		}
+
+		return $tree;
+	}
+
+	/**
+	 * Gets the family values of a given column
 	 * starting from a given parent id.
 	 *
 	 * @param   int      parent id
@@ -430,9 +442,11 @@ class Kohana_MPTT {
 	 *
 	 * @uses    get_tree()
 	 */
+	 /*
 	public function get_family_values($parent_id, $column = 'id')
 	{
 		$values = array();
+
 		foreach ($this->get_tree($parent_id) as $node)
 		{
 			$values[] = $node[$column];
@@ -440,103 +454,50 @@ class Kohana_MPTT {
 
 		return $values;
 	}
-
-
-
-
-
-
-
-
-
-	/**
-	 * Gets the tree with an auto calculated depth column.
-	 *
-	 * @param   int      root id (start from a given root) [def: NULL]
-	 * @return  SQL obj  tree
-	 *
-	 * @uses    get_node()
-	 * @callby  check_tree()
-	 * @callby  get_children_ids()
-	 */
-	public function get_tree($root_id = 1)
-	{
-		$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
-			->from(array($this->table, 'parent'), array($this->table, 'child'))
-			->where('child.lft', 'BETWEEN', DB::expr('`parent`.`lft` AND `parent`.`rgt`'))
-			->group_by('child.id')
-			->order_by('child.lft');
-
-		if ($this->scope !== NULL)
-		{
-			$query->where('child.scope', '=', $this->scope);
-		}
-
-		if ($root_id !== NULL AND $this->get_node($root_id))
-		{
-			$query->where('child.lft', '>=', DB::select('lft')->from($this->table)->where('id', '=', $root_id));
-			$query->where('child.rgt', '<=', DB::select('rgt')->from($this->table)->where('id', '=', $root_id));
-		}
-
-		return $query->execute();
-	}
-
-	/**
-	 * Checks if the tree has a root.
-	 *
-	 * @return  bool   has root
-	 *
-	 * @uses    get_node()
-	 */
-	public function has_root()
-	{
-		return (bool) $this->get_node();
-	}
+	*/
 
 	/**
 	 * Gets a node value from a node id.
 	 *
-	 * If node id is false, the root node is returned.
-	 *
+	 * @param   int      node id
 	 * @param   string   column
-	 * @param   int      node id [def: FALSE]
 	 * @return  mixed    value or FALSE on failure
 	 *
 	 * @uses    get_node()
 	 */
-	public function get_node_value($column, $node_id = FALSE)
+	 /*
+	public function get_node_value($node_id, $column)
 	{
 		$value = FALSE;
 
-		if ($node = $this->get_node($node_id))
+		if ($node = $this->get_node($node_id) AND isset($node[$column]))
 		{
 			$value = $node[$column];
 		}
 
 		return $value;
 	}
+	*/
+
+
+
+
+
+
+
+
+
+
 
 	/**
-	 * Gets a node from a node id.
+	 * Checks if the tree has a root.
 	 *
-	 * @param   mixed    node id
-	 * @return  mixed    node array, or FALSE if node does not exist
-	 *
-	 * @uses    where_scope()
-	 * @caller  move()
-	 * @caller  delete()
-	 * @caller  get_root_node()
-	 * @caller  create_gap()
+	 * @return  bool   has root
+
 	 */
-	public function get_node($node_id)
+	public function has_root()
 	{
-		$query = DB::select()
-			->from($this->table)
-			->where('lft', '=', $node_id);
-
-		$query = $this->_where_scope($query);
-
-		return $query->execute()->current();
+		return (bool) $this->get_root_node();
 	}
 
 	/**
@@ -549,8 +510,18 @@ class Kohana_MPTT {
 	 */	
 	public function get_root_node()
 	{
-		return $this->get_node(1);
+		return $this->get_node(1); // this is wrong for many scopes...
+		
+		// figure out which is the root node!!
+		
 	}
+
+
+
+
+
+
+
 
 	/**
 	 * Checks if a tree is valid.
