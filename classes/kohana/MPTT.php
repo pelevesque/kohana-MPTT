@@ -85,7 +85,7 @@ class Kohana_MPTT {
 	 * @return  mixed    insert result array, or FALSE on failure
 	 *
 	 * @uses    get_root_node()
-	 * @uses    create_gap()
+	 * @uses    _create_gap()
 	 * @uses    check_tree()
 	 */
 	public function insert($data, $relationship, $insert_node_id)
@@ -166,7 +166,7 @@ class Kohana_MPTT {
 	 * @param   bool     moved
 	 *
 	 * @uses    get_node()
-	 * @uses    create_gap()
+	 * @uses    _create_gap()
 	 * @uses    _update_position()
 	 * @uses    check_tree()
 	 * @throws  Kohana_Exception   A node cannot be moved unto itself.
@@ -195,13 +195,13 @@ class Kohana_MPTT {
 			)
 				throw new Kohana_Exception('A parent cannot become a child of its own child.');
 
-			// Kohana_Exception('root node cannot have siblings') is thown in create_gap().
+			// Kohana_Exception('root node cannot have siblings') is thown in _create_gap().
 
 			// Calculate the size of the gap. (number of node positions we are moving)
 			$gap_size = (1 + (($node['rgt'] - ($node['lft'] + 1)) / 2)) * 2;
 
 			// Create the gap to move to.
-			if ($this->create_gap($relationship, $to_node_id, $gap_size))
+			if ($this->_create_gap($relationship, $to_node_id, $gap_size))
 			{
 				// Adjust the node position if it was affected by the gap.
 				if ($to_node['rgt'] < $node['lft'])
@@ -220,7 +220,7 @@ class Kohana_MPTT {
 						$increment = $to_node['rgt'] + 1 - $node['lft'];
 					break;
 
-					// Kohana_Exception('not a supported relationship') is thown in create_gap().
+					// Kohana_Exception('not a supported relationship') is thown in _create_gap().
 				}
 
 				// Move the node and its children into the gap.
@@ -614,6 +614,8 @@ class Kohana_MPTT {
 
 
 
+
+
 	/**
 	 * Creates a gap in the tree.
 	 *
@@ -623,11 +625,12 @@ class Kohana_MPTT {
 	 * @return  mixed    gap lft, FALSE on failure
 	 *
 	 * @uses    get_node()
+	 * @uses    _sibling_relationships
 	 * @uses    _update_position()
-	 * @callby  insert()
-	 * @callby  move()
-	 * @throws  Kohana_Exception   Root node cannot have siblings.
-	 * @throws  Kohana_Exception   Relationship does not exist.
+	 * @caller  insert()
+	 * @caller  move()
+	 * @throws  Kohana_Exception   Root node cannot have siblings
+	 * @throws  Kohana_Exception   Relationship does not exist
 	 */
 	protected function _create_gap($relationship, $node_id, $size = 2)
 	{
@@ -717,7 +720,7 @@ class Kohana_MPTT {
 	 * Adds a where scope clause in the query.
 	 *
 	 * @param   SQL obj   query
-	 * @return  SQL	obj   query
+	 * @return  SQL obj   query
 	 *
 	 * @caller  delete()
 	 * @caller  get_node()
