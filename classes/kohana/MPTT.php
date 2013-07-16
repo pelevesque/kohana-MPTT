@@ -395,7 +395,7 @@ class Kohana_MPTT {
 	/**
 	 * Gets the root node
 	 *
-	 * @return  mixed    node array, or FALSE if node does not exist
+	 * @return  mixed    root node array, or FALSE if root does not exist.
 	 *
 	 * @uses    _where_scope()
 	 * @caller  insert()
@@ -409,6 +409,20 @@ class Kohana_MPTT {
 		$query = $this->_where_scope($query);
 
 		return $query->execute()->current();
+	}
+
+	/**
+	 * Gets the root id
+	 *
+	 * @return  mixed    root id, or FALSE if root does not exist.
+	 *
+	 * @uses    get_rood_node()
+	 */	
+	public function get_root_id()
+	{
+		$root = $this->get_root_node();
+
+		return isset($root['id']) ? $root['id'] : FALSE;
 	}
 
 	/**
