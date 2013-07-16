@@ -94,7 +94,7 @@ class Kohana_MPTT {
 		$inserted = FALSE;
 
 		// Create the root if it doesn't exist.
-		if ( ! $this->get_root_node())
+		if ( ! $this->has_root())
 		{
 			// Set lft and rgt.
 			$root_data = array('lft' => 1, 'rgt' => 2);
@@ -358,18 +358,6 @@ class Kohana_MPTT {
 		return $deleted_ids;
 	}
 
-
-
-
-
-
-
-
-
-
-
-
-
 	/**
 	 * Gets a node from a node id.
 	 *
@@ -392,6 +380,37 @@ class Kohana_MPTT {
 		$query = $this->_where_scope($query);
 
 		return $query->execute()->current();
+	}
+
+	/**
+	 * Gets the root node
+	 *
+	 * @return  mixed    node array, or FALSE if node does not exist
+	 *
+	 * @uses    _where_scope()
+	 * @caller  insert()
+	 */	
+	public function get_root_node()
+	{
+		$query = DB::select()
+			->from($this->table)
+			->where('lft', '=', 1);
+
+		$query = $this->_where_scope($query);
+
+		return $query->execute()->current();
+	}
+
+	/**
+	 * Checks if the tree has a root.
+	 *
+	 * @return  bool   has root
+	 *
+	 * @uses    get_root_node()
+	 */
+	public function has_root()
+	{
+		return (bool) $this->get_root_node();
 	}
 
 	/**
@@ -432,35 +451,6 @@ class Kohana_MPTT {
 		}
 
 		return $tree;
-	}
-
-
-
-
-
-	/**
-	 * Gets the root node
-	 *
-	 * @return  mixed    node array, or FALSE if node does not exist
-	 *
-	 * @uses    get_node()
-	 * @caller  insert()
-	 */	
-	public function get_root_node()
-	{
-		return $this->get_node(1);	
-	}
-
-	/**
-	 * Checks if the tree has a root.
-	 *
-	 * @return  bool   has root
-	 *
-	 * @uses    get_root_node()
-	 */
-	public function has_root()
-	{
-		return (bool) $this->get_root_node();
 	}
 
 	/**
