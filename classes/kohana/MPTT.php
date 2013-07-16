@@ -61,7 +61,7 @@ class Kohana_MPTT {
 	 * Creates a root node
 	 *
 	 * @param   array    custom data array (column => value, …) [def: NULL]
-	 * @return  bool     created
+	 * @return  mixed    root id, or FALSE on failure
 	 *
 	 * @throws  Kohana_Exception   A root node already exists.
 	 */
@@ -81,9 +81,11 @@ class Kohana_MPTT {
 		$data = array_merge($sys_data, $data);
 
 		// Create the root node.
-		return (bool) DB::insert($this->table, array_keys($data))
+		list($insert_id, $affected_rows) = DB::insert($this->table, array_keys($data))
 			->values(array_values($data))
 			->execute();
+
+		return ($affected_rows > 0) ? $insert_id : FALSE;
 	}
 
 	/**
@@ -119,28 +121,25 @@ class Kohana_MPTT {
 	 */
 	public function insert($data, $relationship, $insert_node_id)
 	{
-		$root = TRUE;
-		$inserted = FALSE;
-
-		// Create the root if it doesn't exist.
+		// Make sure we have a root node.
 		if ( ! $this->has_root())
-		{
-			// Set lft and rgt.
-			$root_data = array('lft' => 1, 'rgt' => 2);
+			throw new Kohana_Exception('You must create a root before inserting data.');
 
-			// Set scope.
-			$this->scope !== NULL AND $root_data['scope'] = $this->scope;
+		// Make sure data is an array of arrays.
+		! is_array($data[0]) AND $data = array($data); // how to do this?
 
-			// Create the root node.
-			$root = (bool) DB::insert($this->table, array_keys($root_data))
-				->values(array_values($root_data))
-				->execute();
-	
-			$inserted = TRUE;
-		}
+		// Create the gap for insertion
+		$gap_lft = $this->_create_gap($relationship, $insert_node_id, count($data));
 
-		if ($root)
-		{
+
+		var_dump($gap_lft);
+
+		die();
+
+
+
+/*
+
 			// Create a gap for the insertion.
 			if ($gap = $this->_create_gap($relationship, $insert_node_id))
 			{
@@ -174,7 +173,7 @@ class Kohana_MPTT {
 				$query_result = $query->execute();
 
 				$inserted = TRUE;
-			}
+
 		}
 
 		// Make sure the restructured tree is valid.
@@ -184,6 +183,7 @@ class Kohana_MPTT {
 		}
 
 		return $inserted;
+*/
 	}
 
 	/**
