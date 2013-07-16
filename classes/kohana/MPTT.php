@@ -58,6 +58,35 @@ class Kohana_MPTT {
 	}
 
 	/**
+	 * Creates a root node
+	 *
+	 * @param   array    custom data array (column => value, …) [def: NULL]
+	 * @return  bool     created
+	 *
+	 * @throws  Kohana_Exception   A root node already exists.
+	 */
+	public function create_root($data = array())
+	{
+		// Make sure there is no root node.
+		if ($this->has_root())
+			throw new Kohana_Exception('A root node already exists.');
+
+		// System data.
+		$sys_data = array('lft' => 1, 'rgt' => 2);
+
+		// Add scope to system data.
+		$this->scope !== NULL AND $sys_data['scope'] = $this->scope;
+
+		// Merge custom data with system data.
+		$data = array_merge($sys_data, $data);
+
+		// Create the root node.
+		return (bool) DB::insert($this->table, array_keys($data))
+			->values(array_values($data))
+			->execute();
+	}
+
+	/**
 	 * Inserts a node structure at a given position.
 	 *
 	 * $data accepts two formats:
