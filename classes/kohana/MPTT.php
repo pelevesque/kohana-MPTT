@@ -108,82 +108,63 @@ class Kohana_MPTT {
 	 * );
 	 *
 	 * Table specific data is added normally as colum value pairs.
-	 * Columns that are omitted will fallback to their database default value.
+	 * Columns that are omitted will fallback to their database default values.
 	 *
 	 * @param   array    data
-	 * @param   string   relationship to insert with [def: NULL]
-	 * @param   int      node id to insert to        [def: NULL]
+	 * @param   string   relationship to insert with
+	 * @param   int      node id to insert to
 	 * @return  mixed    insert result array, or FALSE on failure
 	 *
 	 * @uses    get_root_node()
 	 * @uses    _create_gap()
 	 * @uses    _check_tree()
+	 *
+	 * @throws  Kohana_Exception   You must create a root before inserting data.
 	 */
 	public function insert($data, $relationship, $insert_node_id)
 	{
+		$inserted = FALSE;
+
 		// Make sure we have a root node.
 		if ( ! $this->has_root())
 			throw new Kohana_Exception('You must create a root before inserting data.');
 
 		// Make sure data is an array of arrays.
-		! is_array($data[0]) AND $data = array($data); // how to do this?
+		! is_array(reset($data)) AND $data = array($data);
 
-		// Create the gap for insertion
-		$gap_lft = $this->_create_gap($relationship, $insert_node_id, count($data));
+		// Create the gap for insertion.
+		if($gap_lft = $this->_create_gap($relationship, $insert_node_id, count($data) * 2))
+		{
+			$offset = $gap_lft - 1;
 
-
-		var_dump($gap_lft);
-
-		die();
-
-
-
-/*
-
-			// Create a gap for the insertion.
-			if ($gap = $this->_create_gap($relationship, $insert_node_id))
+			foreach($data as $node)
 			{
-				// Add custom columns.
-				$columns = array_keys($data);
+				// Add lft and rgt for single inserts.
+				if (count($data) == 1)
+				{
+					$node['lft'] = 1;
+					$node['rgt'] = 2;
+				}
 
-				// Add system reserved columns.
-				$columns[] = 'lft';
-				$columns[] = 'rgt';
-				$this->scope !== NULL AND $columns[] = 'scope';
+				// Add scope.
+				$this->scope !== NULL AND $node['scope'] = $this->scope;
 
-				// Sort columns
-				sort($columns);
+				// Add node offsets.
+				$node['lft'] = $node['lft'] + $offset;
+				$node['rgt'] = $node['rgt'] + $offset;
 
-				// Start the query and setup the columns.
-				$query = DB::insert($this->table, $columns);
-
-				// Get the offset.
-				$offset = $gap - 1;
-
-				// Set system data values.
-				$data['lft'] = $offset + 1;
-				$data['rgt'] = $offset + 2;
-				$this->scope !== NULL AND $data['scope'] = $this->scope;
-
-				// Values must be sorted like columns.
-				ksort($data);
-
-				$query->values(array_values($data));
-
-				$query_result = $query->execute();
+				// Insert the data.
+				DB::insert($this->table, array_keys($node))
+					->values(array_values($node))
+					->execute();
 
 				$inserted = TRUE;
-
+			}
 		}
 
-		// Make sure the restructured tree is valid.
-		if ($inserted)
-		{
-			$inserted = $this->_check_tree();
-		}
+		$inserted AND $inserted = $this->_check_tree();
 
 		return $inserted;
-*/
 	}
 
 	/**
