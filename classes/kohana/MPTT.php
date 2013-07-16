@@ -428,7 +428,7 @@ class Kohana_MPTT {
 	{
 		$tree = FALSE;
 
-		if ($root_id == NULL OR $this->get_node($root_id))
+		if (($root_id == NULL AND $this->has_root()) OR $this->get_node($root_id))
 		{
 			$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
 				->from(array($this->table, 'parent'), array($this->table, 'child'))
