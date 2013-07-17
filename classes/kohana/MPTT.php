@@ -260,7 +260,7 @@ class Kohana_MPTT {
 	 * Deletes nodes and their children.
 	 *
 	 * @param   mixed   node id or array of node ids to delete
-	 * @return  mixed   deleted ids or FALSE on failure
+	 * @return  mixed   deleted ids, or FALSE on failure
 	 *
 	 * @uses    get_tree()
 	 * @uses    get_node()
@@ -333,44 +333,11 @@ class Kohana_MPTT {
 			}
 		}
 
-		// If deletions were made, clean up and check the tree.
-		if ( ! empty($deleted_ids))
+		$deleted_ids = array_unique($deleted_ids);
+
+		if ( ! $this->_check_tree())
 		{
-			// Remove repeated deleted ids.
-			$deleted_ids = array_unique($deleted_ids);
-
-			// Get the remaining nodes.
-			$query = DB::select('lft')
-				->from($this->table);
-
-			$nodes = $this->_where_scope($query)->execute();
-
-			// Run this code if some nodes are left.
-			if ($nodes)
-			{
-				$empty_tree = FALSE;
-
-				// Get the current node.
-				$node = $nodes->current();
-
-				// Delete the root node if it is childless.
-				if ($nodes->count() == 1 AND $node['lft'] == 1)
-				{
-					$query = DB::delete($this->table)
-						->where('lft', '=', 1);
-
-					$num_deletions = $this->_where_scope($query)->execute();
-
-					// If the root node was deleted, the tree is empty.
-					$num_deletions == 1 AND $empty_tree = TRUE;
-				}
-
-				// Make sure the restructured tree is valid.
-				if ( ! $empty_tree AND ! $this->_check_tree())
-				{
-					$deleted_ids = FALSE;
-				}
-			}
+			$deleted_ids = FALSE;
 		}
 
 		return $deleted_ids;
