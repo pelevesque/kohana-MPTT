@@ -462,6 +462,7 @@ class Kohana_MPTT {
 
 			if ($this->scope !== NULL)
 			{
+				$query->where('parent.scope', '=', $this->scope);
 				$query->where('child.scope', '=', $this->scope);
 			}
 
