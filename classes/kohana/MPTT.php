@@ -496,53 +496,55 @@ class Kohana_MPTT {
 		$current_depth;
 		$ancestors = array();
 		$positions = array();
-		$tree = $this->get_tree()->as_array();
 
-		// Loop through the tree.
-		foreach ($tree as $key => $node)
+		if ($tree = $this->get_tree())
 		{
-			// Modify the ancestors on depth change.
-			if (isset($current_depth))
+			// Loop through the tree.
+			foreach ($tree->as_array() as $key => $node)
 			{
-				if ($node['depth'] > $current_depth)
+				// Modify the ancestors on depth change.
+				if (isset($current_depth))
 				{
-					array_push($ancestors, $tree[$key-1]);
-				}
-				elseif ($node['depth'] < $current_depth)
-				{
-					for ($i=0; $i<$current_depth-$node['depth']; $i++)
+					if ($node['depth'] > $current_depth)
 					{
-						array_pop($ancestors);
+						array_push($ancestors, $tree[$key-1]);
+					}
+					elseif ($node['depth'] < $current_depth)
+					{
+						for ($i=0; $i<$current_depth-$node['depth']; $i++)
+						{
+							array_pop($ancestors);
+						}
 					}
 				}
+
+				// If the node has a parent, set it.
+				! empty($ancestors) AND $parent = $ancestors[count($ancestors)-1];
+
+				/**
+				 * Perform various checks on the node.
+				 *
+				 * 1) lft must be smaller than rgt.
+				 * 2) lft and rgt cannot be used by other nodes.
+				 * 3) A Child node must be inside its parent.
+				 */
+				if (
+					/*1*/ ($node['lft'] >= $node['rgt']) OR
+					/*2*/ (in_array($node['lft'], $positions) OR in_array($node['rgt'], $positions)) OR
+					/*3*/ (isset($parent) AND ($node['lft'] <= $parent['lft'] OR $node['rgt'] >= $parent['rgt']))
+				)
+				{
+					$valid = FALSE;
+					break;
+				}
+
+				// Set the current depth.
+				$current_depth = $node['depth'];
+
+				// Save the positions.
+				$positions[] = $node['lft'];
+				$positions[] = $node['rgt'];
 			}
-
-			// If the node has a parent, set it.
-			! empty($ancestors) AND $parent = $ancestors[count($ancestors)-1];
-
-			/**
-			 * Perform various checks on the node.
-			 *
-			 * 1) lft must be smaller than rgt.
-			 * 2) lft and rgt cannot be used by other nodes.
-			 * 3) A Child node must be inside its parent.
-			 */
-			if (
-				/*1*/ ($node['lft'] >= $node['rgt']) OR
-				/*2*/ (in_array($node['lft'], $positions) OR in_array($node['rgt'], $positions)) OR
-				/*3*/ (isset($parent) AND ($node['lft'] <= $parent['lft'] OR $node['rgt'] >= $parent['rgt']))
-			)
-			{
-				$valid = FALSE;
-				break;
-			}
-
-			// Set the current depth.
-			$current_depth = $node['depth'];
-
-			// Save the positions.
-			$positions[] = $node['lft'];
-			$positions[] = $node['rgt'];
 		}
 
 		// Apply further checks to non-empty trees.
