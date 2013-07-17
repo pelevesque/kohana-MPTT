@@ -171,7 +171,7 @@ class Kohana_MPTT {
 	 * Moves a node and its children.
 	 *
 	 * @param   int      node id
-	 * @param   string   relationship to move with 
+	 * @param   string   relationship to move with ('after', 'first child of')
 	 * @param   int      node id to move to
 	 * @param   bool     moved
 	 *
@@ -200,7 +200,7 @@ class Kohana_MPTT {
 
 			// Don't allow a parent to become its own child.
 			if (
-				in_array($relationship, $this->child_relationships) AND
+				in_array($relationship, $this->_child_relationships) AND
 				($node['lft'] < $to_node['lft'] AND $node['rgt'] > $to_node['rgt'])
 			)
 				throw new Kohana_Exception('A parent cannot become a child of its own child.');
