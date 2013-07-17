@@ -271,9 +271,7 @@ class Kohana_MPTT {
 	public function delete($node_ids)
 	{
 		// Make sure node_ids is an array.
-		$node_ids = (array) $node_ids;
-
-		$tree = $this->get_tree()->as_array();
+		! is_array($node_ids) AND $node_ids = array($node_ids);
 
 		$deleted_ids = array();
 
@@ -286,15 +284,16 @@ class Kohana_MPTT {
 			$ids_to_delete = array();
 
 			// Get the ids to delete.
-			foreach ($tree as $key => $val)
+			$tree = $this->get_tree()->as_array();
+			foreach ($tree as $k => $v)
 			{
-				if ($val['lft'] >= $node['lft'] AND $val['rgt'] <= $node['rgt'])
+				if ($v['lft'] >= $node['lft'] AND $v['rgt'] <= $node['rgt'])
 				{
 					// Save the ids to delete.
-					$ids_to_delete[] = $val['id'];
+					$ids_to_delete[] = $v['id'];
 
 					// Remove ids that will be deleted from the tree.
-					unset($tree[$key]);
+					unset($tree[$k]);
 				}
 			}
 
