@@ -109,7 +109,7 @@ class Kohana_MPTT {
 	 *
 	 * @uses    get_root_node()
 	 * @uses    _create_gap()
-	 * @uses    _check_tree()
+	 * @uses    validate_tree()
 	 *
 	 * @throws  Kohana_Exception   You must create a root before inserting data.
 	 */
@@ -154,7 +154,7 @@ class Kohana_MPTT {
 			}
 		}
 
-		$inserted AND $inserted = $this->_check_tree();
+		$inserted AND $inserted = $this->validate_tree();
 
 		return $inserted;
 	}
@@ -170,7 +170,7 @@ class Kohana_MPTT {
 	 * @uses    get_node()
 	 * @uses    _create_gap()
 	 * @uses    _update_position()
-	 * @uses    _check_tree()
+	 * @uses    validate_tree()
 	 * @throws  Kohana_Exception   A node cannot be moved unto itself.
 	 * @throws  Kohana_Exception   The root node cannot be moved.
 	 * @throws  Kohana_Exception   A parent cannot become a child of its own child.
@@ -238,7 +238,7 @@ class Kohana_MPTT {
 				$this->_update_position('rgt', $increment, array('rgt', '>', $limit));
 
 				// Make sure the restructured tree is valid.
-				if ($this->_check_tree())
+				if ($this->validate_tree())
 				{
 					$moved = TRUE;
 				}
@@ -258,7 +258,7 @@ class Kohana_MPTT {
 	 * @uses    get_node()
 	 * @uses    _where_scope()
 	 * @uses    _update_position()
-	 * @uses    _check_tree()
+	 * @uses    validate_tree()
 	 */
 	public function delete($node_ids)
 	{
@@ -327,7 +327,7 @@ class Kohana_MPTT {
 
 		$deleted_ids = array_unique($deleted_ids);
 
-		if ( ! $this->_check_tree())
+		if ( ! $this->validate_tree())
 		{
 			$deleted_ids = FALSE;
 		}
@@ -413,7 +413,7 @@ class Kohana_MPTT {
 	 * @uses    get_node()
 	 * @caller  delete()
 	 * @caller  get_family_values()
-	 * @caller  _check_tree()
+	 * @caller  validate_tree()
 	 */
 	public function get_tree($root_id = NULL)
 	{
@@ -446,7 +446,7 @@ class Kohana_MPTT {
 	}
 
 	/**
-	 * Checks if a tree is valid.
+	 * Validates a tree.
 	 *
 	 * Empty trees are considered valid.
 	 *
@@ -458,7 +458,7 @@ class Kohana_MPTT {
 	 * @caller  move()
 	 * @caller  delete()
 	 */
-	protected function _check_tree()
+	public function validate_tree()
 	{
 		$valid = TRUE;
 		$current_depth;
