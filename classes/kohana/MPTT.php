@@ -275,27 +275,19 @@ class Kohana_MPTT {
 
 			$ids_to_delete = array();
 
-			// Make sure we have a tree.
-			if ($tree = $this->get_tree())
-			{
-				$tree = $tree->as_array();
+			$tree = $this->get_tree()->as_array();
 
-				// Loop the tree and delete ids.
-				foreach ($tree as $k => $v)
+			// Loop the tree and delete ids.
+			foreach ($tree as $k => $v)
+			{
+				if ($v['lft'] >= $node['lft'] AND $v['rgt'] <= $node['rgt'])
 				{
-					if ($v['lft'] >= $node['lft'] AND $v['rgt'] <= $node['rgt'])
-					{
-						// Save the ids to delete.
-						$ids_to_delete[] = $v['id'];
+					// Save the ids to delete.
+					$ids_to_delete[] = $v['id'];
 
-						// Remove ids that will be deleted from the tree.
-						unset($tree[$k]);
-					}
+					// Remove ids that will be deleted from the tree.
+					unset($tree[$k]);
 				}
-			}
-			else
-			{
-				break;
 			}
 
 			// Process the deletions.
@@ -408,7 +400,7 @@ class Kohana_MPTT {
 	 * Gets the tree with an auto calculated depth column.
 	 *
 	 * @param   int      root id (start from a given root) [def: NULL]
-	 * @return  SQL obj  tree obj, or FALSE on failure
+	 * @return  SQL obj  tree obj
 	 *
 	 * @uses    get_node()
 	 * @caller  delete()
@@ -417,32 +409,27 @@ class Kohana_MPTT {
 	 */
 	public function get_tree($root_id = NULL)
 	{
-		$tree = FALSE;
+		$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
+			->from(array($this->table, 'parent'), array($this->table, 'child'))
+			->where('child.lft', 'BETWEEN', DB::expr('`parent`.`lft` AND `parent`.`rgt`'))
+			->group_by('child.id')
+			->order_by('child.lft');
 
-		if (($root_id == NULL AND $this->has_root()) OR $this->get_node($root_id))
+		if ($this->scope !== NULL)
 		{
-			$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
-				->from(array($this->table, 'parent'), array($this->table, 'child'))
-				->where('child.lft', 'BETWEEN', DB::expr('`parent`.`lft` AND `parent`.`rgt`'))
-				->group_by('child.id')
-				->order_by('child.lft');
-
-			if ($this->scope !== NULL)
-			{
-				$query->where('parent.scope', '=', $this->scope);
-				$query->where('child.scope', '=', $this->scope);
-			}
-
-			if ($root_id !== NULL)
-			{
-				$query->where('child.lft', '>=', DB::select('lft')->from($this->table)->where('id', '=', $root_id));
-				$query->where('child.rgt', '<=', DB::select('rgt')->from($this->table)->where('id', '=', $root_id));
-			}
-
-			$tree = $query->execute();
+			$query->where('parent.scope', '=', $this->scope);
+			$query->where('child.scope', '=', $this->scope);
 		}
 
-		return $tree;
+		if ($root_id !== NULL)
+		{
+			$query->where('child.lft', '>=', DB::select('lft')->from($this->table)->where('id', '=', $root_id));
+			$query->where('child.rgt', '<=', DB::select('rgt')->from($this->table)->where('id', '=', $root_id));
+		}
+
+		$tree = $query->execute();
+
+		return $query->execute();
 	}
 
 	/**
@@ -464,55 +451,53 @@ class Kohana_MPTT {
 		$current_depth;
 		$ancestors = array();
 		$positions = array();
+		$tree = $this->get_tree()->as_array();
 
-		if ($tree = $this->get_tree())
+		// Loop through the tree.
+		foreach ($tree as $key => $node)
 		{
-			// Loop through the tree.
-			foreach ($tree->as_array() as $key => $node)
+			// Modify the ancestors on depth change.
+			if (isset($current_depth))
 			{
-				// Modify the ancestors on depth change.
-				if (isset($current_depth))
+				if ($node['depth'] > $current_depth)
 				{
-					if ($node['depth'] > $current_depth)
+					array_push($ancestors, $tree[$key-1]);
+				}
+				elseif ($node['depth'] < $current_depth)
+				{
+					for ($i=0; $i<$current_depth-$node['depth']; $i++)
 					{
-						array_push($ancestors, $tree[$key-1]);
-					}
-					elseif ($node['depth'] < $current_depth)
-					{
-						for ($i=0; $i<$current_depth-$node['depth']; $i++)
-						{
-							array_pop($ancestors);
-						}
+						array_pop($ancestors);
 					}
 				}
-
-				// If the node has a parent, set it.
-				! empty($ancestors) AND $parent = $ancestors[count($ancestors)-1];
-
-				/**
-				 * Perform various checks on the node.
-				 *
-				 * 1) lft must be smaller than rgt.
-				 * 2) lft and rgt cannot be used by other nodes.
-				 * 3) A Child node must be inside its parent.
-				 */
-				if (
-					/*1*/ ($node['lft'] >= $node['rgt']) OR
-					/*2*/ (in_array($node['lft'], $positions) OR in_array($node['rgt'], $positions)) OR
-					/*3*/ (isset($parent) AND ($node['lft'] <= $parent['lft'] OR $node['rgt'] >= $parent['rgt']))
-				)
-				{
-					$valid = FALSE;
-					break;
-				}
-
-				// Set the current depth.
-				$current_depth = $node['depth'];
-
-				// Save the positions.
-				$positions[] = $node['lft'];
-				$positions[] = $node['rgt'];
 			}
+
+			// If the node has a parent, set it.
+			! empty($ancestors) AND $parent = $ancestors[count($ancestors)-1];
+
+			/**
+			 * Perform various checks on the node.
+			 *
+			 * 1) lft must be smaller than rgt.
+			 * 2) lft and rgt cannot be used by other nodes.
+			 * 3) A Child node must be inside its parent.
+			 */
+			if (
+				/*1*/ ($node['lft'] >= $node['rgt']) OR
+				/*2*/ (in_array($node['lft'], $positions) OR in_array($node['rgt'], $positions)) OR
+				/*3*/ (isset($parent) AND ($node['lft'] <= $parent['lft'] OR $node['rgt'] >= $parent['rgt']))
+			)
+			{
+				$valid = FALSE;
+				break;
+			}
+
+			// Set the current depth.
+			$current_depth = $node['depth'];
+
+			// Save the positions.
+			$positions[] = $node['lft'];
+			$positions[] = $node['rgt'];
 		}
 
 		// Apply further checks to non-empty trees.
