@@ -4,9 +4,12 @@
  *
  * @module_version  1.0
  * @Kohana_version  3.3.0
- * @author          Pierre-Emmanuel Lévesque
- * @date            July 15th, 2013
  * @dependencies    Kohana database module
+ * @author          Pierre-Emmanuel Lévesque
+ * @date            July 18th, 2013
+ * @email           pierre.e.levesque@gmail.com
+ * @copyright       Copyright 2013, Pierre-Emmanuel Lévesque
+ * @license         MIT License - @see LICENSE.md
  */
 class Kohana_MPTT {
 
@@ -37,8 +40,6 @@ class Kohana_MPTT {
 	/**
 	 * Constructor
 	 *
-	 * Optionally sets the table and scope upon initializing the class.
-	 *
 	 * @param   string   table [def: NULL]
 	 * @param   int      scope [def: NULL]
 	 * @return  void
@@ -50,16 +51,18 @@ class Kohana_MPTT {
 	}
 
 	/**
-	 * Creates a root node
+	 * Creates a root node.
 	 *
 	 * @param   array    custom data array (column => value, …) [def: NULL]
-	 * @return  mixed    root id, or FALSE on failure
+	 * @return  mixed    root id
+	 *
+	 * @uses    has_root()
 	 *
 	 * @throws  Kohana_Exception   A root node already exists.
 	 */
 	public function create_root($data = array())
 	{
-		// Make sure there is no root node.
+		// Make sure there isn't already a root node.
 		if ($this->has_root())
 			throw new Kohana_Exception('A root node already exists.');
 
@@ -72,19 +75,19 @@ class Kohana_MPTT {
 		// Merge custom data with system data.
 		$data = array_merge($sys_data, $data);
 
-		// Create the root node.
+		// Create the root node and return the insert_id (root id).
 		list($insert_id, $affected_rows) = DB::insert($this->table, array_keys($data))
 			->values(array_values($data))
 			->execute();
 
-		return ($affected_rows > 0) ? $insert_id : FALSE;
+		return $insert_id;
 	}
 
 	/**
 	 * Inserts a node structure at a given position.
 	 *
 	 * $data accepts two formats:
-	 * 
+	 *
 	 * 1 - array(column => value, column => value, ...)
 	 * 2 - array(array(column => value, column => value), array(column => value,…)...)
 	 *
@@ -105,17 +108,16 @@ class Kohana_MPTT {
 	 * @param   array    data
 	 * @param   string   relationship to insert with
 	 * @param   int      node id to insert to
-	 * @return  mixed    insert result array, or FALSE on failure
+	 * @return  array    inserted ids
 	 *
-	 * @uses    get_root_node()
+	 * @uses    has_root()
 	 * @uses    _create_gap()
-	 * @uses    validate_tree()
 	 *
 	 * @throws  Kohana_Exception   You must create a root before inserting data.
 	 */
 	public function insert($data, $relationship, $insert_node_id)
 	{
-		$inserted = FALSE;
+		$inserted_ids = array();
 
 		// Make sure we have a root node.
 		if ( ! $this->has_root())
@@ -124,8 +126,8 @@ class Kohana_MPTT {
 		// Make sure data is an array of arrays.
 		! is_array(reset($data)) AND $data = array($data);
 
-		// Create the gap for insertion.
-		if($gap_lft = $this->_create_gap($relationship, $insert_node_id, count($data) * 2))
+		// Make sure we have data, and create the gap for insertion.
+		if(count($data) > 0 AND $gap_lft = $this->_create_gap($relationship, $insert_node_id, count($data) * 2))
 		{
 			$offset = $gap_lft - 1;
 
@@ -146,17 +148,15 @@ class Kohana_MPTT {
 				$node['rgt'] = $node['rgt'] + $offset;
 
 				// Insert the data.
-				DB::insert($this->table, array_keys($node))
+				list($insert_id, $affected_rows) = DB::insert($this->table, array_keys($node))
 					->values(array_values($node))
 					->execute();
 
-				$inserted = TRUE;
+				$inserted_ids[] = $insert_id;
 			}
 		}
 
-		$inserted AND $inserted = $this->validate_tree();
-
-		return $inserted;
+		return $inserted_ids;
 	}
 
 	/**
@@ -165,12 +165,13 @@ class Kohana_MPTT {
 	 * @param   int      node id
 	 * @param   string   relationship to move with ('after', 'first child of')
 	 * @param   int      node id to move to
-	 * @param   bool     moved
+	 * @return  bool     moved
 	 *
 	 * @uses    get_node()
+	 * @uses    _child_relationships
 	 * @uses    _create_gap()
 	 * @uses    _update_position()
-	 * @uses    validate_tree()
+	 *
 	 * @throws  Kohana_Exception   A node cannot be moved unto itself.
 	 * @throws  Kohana_Exception   The root node cannot be moved.
 	 * @throws  Kohana_Exception   A parent cannot become a child of its own child.
@@ -197,7 +198,7 @@ class Kohana_MPTT {
 			)
 				throw new Kohana_Exception('A parent cannot become a child of its own child.');
 
-			// Kohana_Exception('root node cannot have siblings') is thown in _create_gap().
+			// Kohana_Exception('The root node cannot have siblings.') is thown in _create_gap().
 
 			// Calculate the size of the gap. (number of node positions we are moving)
 			$gap_size = (1 + (($node['rgt'] - ($node['lft'] + 1)) / 2)) * 2;
@@ -222,7 +223,7 @@ class Kohana_MPTT {
 						$increment = $to_node['rgt'] + 1 - $node['lft'];
 					break;
 
-					// Kohana_Exception('not a supported relationship') is thown in _create_gap().
+					// Kohana_Exception(':relationship is not a supported relationship.') is thown in _create_gap().
 				}
 
 				// Move the node and its children into the gap.
@@ -237,11 +238,7 @@ class Kohana_MPTT {
 				$this->_update_position('lft', $increment, array('lft', '>', $limit));
 				$this->_update_position('rgt', $increment, array('rgt', '>', $limit));
 
-				// Make sure the restructured tree is valid.
-				if ($this->validate_tree())
-				{
-					$moved = TRUE;
-				}
+				$moved = TRUE;
 			}
 		}
 
@@ -249,23 +246,22 @@ class Kohana_MPTT {
 	}
 
 	/**
-	 * Deletes nodes and their children.
+	 * Deletes a node or nodes, and their children.
 	 *
-	 * @param   mixed   node id or array of node ids to delete
-	 * @return  mixed   deleted ids, or FALSE on failure
+	 * @param   mixed   node id, or array of node ids to delete
+	 * @return  array   deleted ids
 	 *
-	 * @uses    get_tree()
 	 * @uses    get_node()
+	 * @uses    get_tree()
 	 * @uses    _where_scope()
 	 * @uses    _update_position()
-	 * @uses    validate_tree()
 	 */
 	public function delete($node_ids)
 	{
+		$deleted_ids = array();
+
 		// Make sure node_ids is an array.
 		! is_array($node_ids) AND $node_ids = array($node_ids);
-
-		$deleted_ids = array();
 
 		// Loop through all the node ids to delete.
 		foreach ($node_ids as $node_id)
@@ -319,11 +315,6 @@ class Kohana_MPTT {
 
 		$deleted_ids = array_unique($deleted_ids);
 
-		if ( ! $this->validate_tree())
-		{
-			$deleted_ids = FALSE;
-		}
-
 		return $deleted_ids;
 	}
 
@@ -334,10 +325,10 @@ class Kohana_MPTT {
 	 * @return  mixed    node array, or FALSE if node does not exist
 	 *
 	 * @uses    _where_scope()
+	 *
 	 * @caller  move()
 	 * @caller  delete()
 	 * @caller  get_tree()
-	 * @caller  get_node_value()
 	 * @caller  _create_gap()
 	 */
 	public function get_node($node_id)
@@ -352,13 +343,15 @@ class Kohana_MPTT {
 	}
 
 	/**
-	 * Gets the root node
+	 * Gets the root node.
 	 *
-	 * @return  mixed    root node array, or FALSE if root does not exist.
+	 * @return  mixed    root node array, or FALSE if root does not exist
 	 *
 	 * @uses    _where_scope()
-	 * @caller  insert()
-	 */	
+	 *
+	 * @caller  get_root_id()
+	 * @caller  has_root()
+	 */
 	public function get_root_node()
 	{
 		$query = DB::select()
@@ -371,12 +364,12 @@ class Kohana_MPTT {
 	}
 
 	/**
-	 * Gets the root id
+	 * Gets the root id.
 	 *
-	 * @return  mixed    root id, or FALSE if root does not exist.
+	 * @return  mixed    root id, or FALSE if root does not exist
 	 *
 	 * @uses    get_rood_node()
-	 */	
+	 */
 	public function get_root_id()
 	{
 		$root = $this->get_root_node();
@@ -390,6 +383,9 @@ class Kohana_MPTT {
 	 * @return  bool   has root
 	 *
 	 * @uses    get_root_node()
+	 *
+	 * @caller  create_root()
+	 * @caller  insert()
 	 */
 	public function has_root()
 	{
@@ -402,9 +398,7 @@ class Kohana_MPTT {
 	 * @param   int      root id (start from a given root) [def: NULL]
 	 * @return  SQL obj  tree obj
 	 *
-	 * @uses    get_node()
 	 * @caller  delete()
-	 * @caller  get_family_values()
 	 * @caller  validate_tree()
 	 */
 	public function get_tree($root_id = NULL)
@@ -441,9 +435,6 @@ class Kohana_MPTT {
 	 * @return  bool    valid
 	 *
 	 * @uses    get_tree()
-	 * @caller  insert()
-	 * @caller  move()
-	 * @caller  delete()
 	 */
 	public function validate_tree()
 	{
@@ -480,7 +471,7 @@ class Kohana_MPTT {
 			 *
 			 * 1) lft must be smaller than rgt.
 			 * 2) lft and rgt cannot be used by other nodes.
-			 * 3) A Child node must be inside its parent.
+			 * 3) A child node must be inside its parent.
 			 */
 			if (
 				/*1*/ ($node['lft'] >= $node['rgt']) OR
@@ -527,10 +518,12 @@ class Kohana_MPTT {
 	 * @uses    get_node()
 	 * @uses    _sibling_relationships
 	 * @uses    _update_position()
+	 *
 	 * @caller  insert()
 	 * @caller  move()
-	 * @throws  Kohana_Exception   Root node cannot have siblings
-	 * @throws  Kohana_Exception   Relationship does not exist
+	 *
+	 * @throws  Kohana_Exception   The root node cannot have siblings.
+	 * @throws  Kohana_Exception   :relationship is not a supported relationship.
 	 */
 	protected function _create_gap($relationship, $node_id, $size = 2)
 	{
@@ -541,7 +534,7 @@ class Kohana_MPTT {
 		{
 			// Don't allow the root node to have siblings.
 			if ($node['lft'] == 1 AND in_array($relationship, $this->_sibling_relationships))
-				throw new Kohana_Exception('The root node cannot have siblings');
+				throw new Kohana_Exception('The root node cannot have siblings.');
 
 			// Get parameters depending on the relationship.
 			switch ($relationship)
@@ -578,7 +571,7 @@ class Kohana_MPTT {
 	 * 2 - array('lft', 'rgt')
 	 *
 	 * Where conditions accept two formats:
-	 * 
+	 *
 	 * 1 - array(column, value, condition)
 	 * 2 - array(array(column, value, condition, array(…))
 	 *
@@ -588,6 +581,7 @@ class Kohana_MPTT {
 	 * @return  void
 	 *
 	 * @uses    _where_scope()
+	 *
 	 * @caller  move()
 	 * @caller  delete()
 	 * @caller  _create_gap()
@@ -624,6 +618,7 @@ class Kohana_MPTT {
 	 *
 	 * @caller  delete()
 	 * @caller  get_node()
+	 * @caller  get_root_node()
 	 * @caller  _update_position()
 	 */
 	protected function _where_scope($query)
