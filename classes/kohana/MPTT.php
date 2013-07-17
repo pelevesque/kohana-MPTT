@@ -21,14 +21,6 @@ class Kohana_MPTT {
 	public $scope;
 
 	/**
-	 * @var array   Supported relationships.
-	 */
-	protected $_relationships = array(
-		'after',
-		'first child of',
-	);
-
-	/**
 	 * @var array   Sibling relationships.
 	 */
 	protected $_sibling_relationships = array(
