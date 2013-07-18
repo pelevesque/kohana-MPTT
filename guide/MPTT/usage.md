@@ -25,6 +25,7 @@ You will get an exception under these circumstances:
 
  - If a root already exists.
 
+
     // Create a basic root.
     $root_id = $mptt->create_root();
 
@@ -40,9 +41,11 @@ You can use two relationships when inserting. This covers all insertion points.
  - after
  - first child of
 
+
 You will get an exception under these circumstances:
 
  - If you try to insert data before creating a node.
+
 
     // Insert a node.
     $data = array('category' => 'joe', 'num_products' => '1');
@@ -65,11 +68,13 @@ You can use two relationships when moving. This covers all movements.
  - after
  - first child of
 
+
 You will get an exception under these circumstances:
 
  - If you try to move a node unto itself.
  - If you try to move the root.
  - If you try to make a parent become the child of its own child.
+
 
     // Move node id 4 after node id 5
     $moved = $mptt->move(4, 'after', 5);
