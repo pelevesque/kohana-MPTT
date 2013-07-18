@@ -25,13 +25,13 @@ You will get an exception under these circumstances:
 
  - If a root already exists.
 
-
-
+~~~~
     // Create a basic root.
     $root_id = $mptt->create_root();
 
     // Add a description for the category field.
     $root_id = $mptt->create_root(array('category' => 'root'));
+~~~~
 
 When you don't set a custom field's value, the database should be setup to fallback to a default. In the above basic root example, the category field should fallback to blank or NULL.
 
