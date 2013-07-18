@@ -395,13 +395,13 @@ class Kohana_MPTT {
 	/**
 	 * Gets the tree with an auto calculated depth column.
 	 *
-	 * @param   int      root id (start from a given root) [def: NULL]
+	 * @param   int      node id (start from a given node) [def: NULL]
 	 * @return  SQL obj  tree obj
 	 *
 	 * @caller  delete()
 	 * @caller  validate_tree()
 	 */
-	public function get_tree($root_id = NULL)
+	public function get_tree($node_id = NULL)
 	{
 		$query = DB::select('*', array(DB::expr('COUNT(`parent`.`id`) - 1'), 'depth'))
 			->from(array($this->table, 'parent'), array($this->table, 'child'))
@@ -415,10 +415,10 @@ class Kohana_MPTT {
 			$query->where('child.scope', '=', $this->scope);
 		}
 
-		if ($root_id !== NULL)
+		if ($node_id !== NULL)
 		{
-			$query->where('child.lft', '>=', DB::select('lft')->from($this->table)->where('id', '=', $root_id));
-			$query->where('child.rgt', '<=', DB::select('rgt')->from($this->table)->where('id', '=', $root_id));
+			$query->where('child.lft', '>=', DB::select('lft')->from($this->table)->where('id', '=', $node_id));
+			$query->where('child.rgt', '<=', DB::select('rgt')->from($this->table)->where('id', '=', $node_id));
 		}
 
 		$tree = $query->execute();
