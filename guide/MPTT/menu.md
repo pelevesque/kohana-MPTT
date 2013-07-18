@@ -1,3 +1,3 @@
-## [XMPTT]()
+## [MPTT]()
  - [installation](installation)
  - [usage](usage)
