@@ -26,6 +26,7 @@ You will get an exception under these circumstances:
  - If a root already exists.
 
 
+
     // Create a basic root.
     $root_id = $mptt->create_root();
 
