@@ -45,6 +45,7 @@ You can use two relationships when inserting. This covers all insertion points.
 You will get an exception under these circumstances:
 
  - If you try to insert data before creating a node.
+ - If you try to insert a sibling for the root node.
 
 ~~~~
     // Insert a node.

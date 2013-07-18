@@ -111,17 +111,23 @@ class Kohana_MPTT {
 	 * @return  array    inserted ids
 	 *
 	 * @uses    has_root()
+	 * @uses    get_root_id()
 	 * @uses    _create_gap()
 	 *
 	 * @throws  Kohana_Exception   You must create a root before inserting data.
+	 * @throws  Kohana_Exception   The root node cannot have siblings.
 	 */
 	public function insert($data, $relationship, $insert_node_id)
 	{
-		$inserted_ids = array();
-
 		// Make sure we have a root node.
 		if ( ! $this->has_root())
 			throw new Kohana_Exception('You must create a root before inserting data.');
+
+		// Make sure the root node doesn't have siblings.
+		if ($relationship == 'after' AND $insert_node_id == $this->get_root_id())
+			throw new Kohana_Exception('The root node cannot have siblings.');
+
+		$inserted_ids = array();
 
 		// Make sure data is an array of arrays.
 		! is_array(reset($data)) AND $data = array($data);
@@ -369,6 +375,8 @@ class Kohana_MPTT {
 	 * @return  mixed    root id, or FALSE if root does not exist
 	 *
 	 * @uses    get_rood_node()
+	 *
+	 * @caller  insert()
 	 */
 	public function get_root_id()
 	{
