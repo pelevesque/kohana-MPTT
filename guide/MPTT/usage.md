@@ -42,12 +42,11 @@ You can use two relationships when inserting. This covers all insertion points.
  - after
  - first child of
 
-
 You will get an exception under these circumstances:
 
  - If you try to insert data before creating a node.
 
-
+~~~~
     // Insert a node.
     $data = array('category' => 'joe', 'num_products' => '1');
     $inserted_ids = $mptt->insert($data, 'first child of', $root_id);
@@ -59,6 +58,7 @@ You will get an exception under these circumstances:
         array('lft' => 4, 'rgt' => 5, 'category' => 'casual', 'num_products' => 6),
     );
     $inserted_ids = $mptt->insert($data, 'after', 2);
+~~~~
 
 You can insert entire node structures using the method above. The lft and rgt values are used to determing the structure. lft should always start at one, it will be offset when inserted at the proper position.
 
@@ -69,19 +69,19 @@ You can use two relationships when moving. This covers all movements.
  - after
  - first child of
 
-
 You will get an exception under these circumstances:
 
  - If you try to move a node unto itself.
  - If you try to move the root.
  - If you try to make a parent become the child of its own child.
 
-
+~~~~
     // Move node id 4 after node id 5
     $moved = $mptt->move(4, 'after', 5);
 
     // Move node id 5 to make it the first child of node id 6
     $moved = $mptt->move(5, 'first child of', 6);
+~~~~
 
 ## Delete A Node Or Nodes
 
