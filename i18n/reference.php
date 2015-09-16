@@ -2,6 +2,6 @@
 
 return array
 (
-	'after'           => '',
-	'first child of'  => '',
+    'after'           => '',
+    'first child of'  => '',
 );
